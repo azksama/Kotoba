@@ -31,5 +31,13 @@
     "Freebox VPN setup",
     "4G/5G connectivity",
     "large real-game corpus translation quality"
-  ]
+  ],
+  "tls_router": {
+    "rust_unit_tests": 2,
+    "lan_both_backends": true,
+    "public_ip_from_lan_both_backends": true,
+    "backend_certificates_verified": true,
+    "unauthenticated_kotoba_rejected": true,
+    "physical_phone_4g": false
+  }
 }

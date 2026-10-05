@@ -17,6 +17,7 @@ struct Args {
     /// Address written to pairing code, and certificate SAN on first launch.
     #[arg(long, default_value = "localhost")] host: String,
     #[arg(long)] san: Vec<String>,
+    #[arg(long)] advertise_port: Option<u16>,
 }
 
 struct App {
@@ -239,7 +240,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::fs::write(&token_path, token)?;
     }
     let token = std::fs::read_to_string(&token_path)?.trim().to_owned();
-    let pairing = Pairing { version:1, endpoint:format!("https://{}:{}", args.host, args.bind.port()), certificate:std::fs::read_to_string(&cert_path)?, token:token.clone() };
+    let pairing = Pairing { version:1, endpoint:format!("https://{}:{}", args.host, args.advertise_port.unwrap_or(args.bind.port())), certificate:std::fs::read_to_string(&cert_path)?, token:token.clone() };
     pairing.validate().map_err(std::io::Error::other)?;
     std::fs::write(root.join("pairing.txt"),pairing.code())?;
     let mut jobs = BTreeMap::new();

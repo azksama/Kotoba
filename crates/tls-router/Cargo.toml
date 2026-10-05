@@ -1,0 +1,9 @@
+[package]
+name = "kotoba-tls-router"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio.workspace = true
+clap = { version = "4", features = ["derive"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }

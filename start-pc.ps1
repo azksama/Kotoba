@@ -1,6 +1,9 @@
 param([string]$Address, [switch]$ShowPairing)
 $ErrorActionPreference='Stop'
 Set-Location -LiteralPath $PSScriptRoot
+$networkFile=Join-Path $PSScriptRoot '.kotoba\network.json'
+$network=if(Test-Path -LiteralPath $networkFile){Get-Content -LiteralPath $networkFile -Raw | ConvertFrom-Json}else{$null}
+if(-not $Address -and $network){$Address=$network.publicHost}
 if(-not $Address){
     $route=Get-NetRoute -AddressFamily IPv4 -DestinationPrefix '0.0.0.0/0' | Sort-Object RouteMetric | Select-Object -First 1
     $Address=(Get-NetIPAddress -InterfaceIndex $route.InterfaceIndex -AddressFamily IPv4 | Where-Object { $_.IPAddress -notlike '169.254.*' } | Select-Object -First 1).IPAddress
@@ -18,10 +21,14 @@ if(-not(Test-Path -LiteralPath $binary)){throw 'Compilez le compagnon avec cargo
 $existing=Get-NetTCPConnection -LocalPort 48736 -State Listen -ErrorAction SilentlyContinue
 if(-not $existing){
     $log=Join-Path $PSScriptRoot 'logs';$null=New-Item -ItemType Directory -Path $log -Force
-    Start-Process -FilePath $binary -WorkingDirectory $PSScriptRoot -ArgumentList @('--host',$Address) -WindowStyle Hidden -RedirectStandardOutput (Join-Path $log 'companion.log') -RedirectStandardError (Join-Path $log 'companion-error.log') | Out-Null
+    $serverArgs=@('--host',$Address)
+    if($network){$serverArgs+=@('--bind','127.0.0.1:48736','--advertise-port',[string]$network.publicPort)}
+    Start-Process -FilePath $binary -WorkingDirectory $PSScriptRoot -ArgumentList $serverArgs -WindowStyle Hidden -RedirectStandardOutput (Join-Path $log 'companion.log') -RedirectStandardError (Join-Path $log 'companion-error.log') | Out-Null
     for($i=0;$i -lt 30;$i++){if(Get-NetTCPConnection -LocalPort 48736 -State Listen -ErrorAction SilentlyContinue){break};Start-Sleep -Seconds 1}
 }
 if(-not(Get-NetTCPConnection -LocalPort 48736 -State Listen -ErrorAction SilentlyContinue)){throw 'Le compagnon ne demarre pas. Consultez logs\companion-error.log.'}
-Write-Host "Kotoba PC : https://${Address}:48736"
+$displayPort=if($network){$network.publicPort}else{48736}
+Write-Host "Kotoba PC : https://${Address}:$displayPort"
+if($network){& (Join-Path $PSScriptRoot 'start-tls-router.ps1')}
 Write-Host 'Connexion privee : .kotoba\pairing.txt (a importer dans Android).'
 if($ShowPairing){Start-Process notepad.exe -ArgumentList ('"'+(Join-Path $data 'pairing.txt')+'"')}

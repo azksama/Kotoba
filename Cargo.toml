@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/protocol", "crates/companion", "mobile/src-tauri"]
+members = ["crates/protocol", "crates/companion", "crates/tls-router", "mobile/src-tauri"]
 resolver = "2"
 
 [workspace.dependencies]
