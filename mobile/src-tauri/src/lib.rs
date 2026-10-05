@@ -15,18 +15,24 @@ struct Remote(Mutex<Option<Connection>>);
 async fn send(connection: &Connection, method: reqwest::Method, path: &str, body: Option<Value>, binary: bool, output_dir: Option<std::path::PathBuf>) -> Result<Value, String> {
     let mut request = connection.client.request(method,format!("{}{}",connection.pairing.endpoint.trim_end_matches('/'),path))
         .bearer_auth(&connection.pairing.token);
-    if let Some(body)=body { request=request.json(&body); }
-    let mut response = request.send().await.map_err(|_|"PC injoignable. VÃƒÂ©rifiez son dÃƒÂ©marrage, le Wi-Fi ou le VPN et lÃ¢â‚¬â„¢adresse HTTPS.".to_string())?;
+    if let Some(ref body)=body { request=request.json(body); }
+    let transfer = body.is_some() || binary;
+    request = request.timeout(std::time::Duration::from_secs(if transfer { 600 } else { 30 }));
+    let mut response = request.send().await.map_err(|e| {
+        if e.is_timeout() { "Délai dépassé pendant le transfert. Le PC peut rester connecté ; réessayez sur un réseau plus rapide.".to_owned() }
+        else if e.is_connect() { "Connexion au PC impossible. Vérifiez son démarrage et votre connexion Internet.".to_owned() }
+        else { "Transfert interrompu. Réessayez ; le fichier original est conservé.".to_owned() }
+    })?;
     let status=response.status();
     let mut data=Vec::new();
-    while let Some(chunk)=response.chunk().await.map_err(|_|"TÃƒÂ©lÃƒÂ©chargement interrompu")? {
-        if data.len()+chunk.len()>MAX_FILE*2 { return Err("RÃƒÂ©ponse du PC trop volumineuse".into()); }
+    while let Some(chunk)=response.chunk().await.map_err(|_|"Téléchargement interrompu")? {
+        if data.len()+chunk.len()>MAX_FILE*2 { return Err("Réponse du PC trop volumineuse".into()); }
         data.extend_from_slice(&chunk);
     }
     if !status.is_success() {
         let value: Value=serde_json::from_slice(&data).unwrap_or_default();
-        return Err(if status.as_u16()==401 { "Connexion rÃƒÂ©voquÃƒÂ©e. Importez un nouveau code depuis le PC.".into() }
-            else { value["error"].as_str().unwrap_or("Le PC a refusÃƒÂ© la requÃƒÂªte").to_owned() });
+        return Err(if status.as_u16()==401 { "Connexion révoquée. Importez un nouveau code depuis le PC.".into() }
+            else { value["error"].as_str().unwrap_or("Le PC a refusé la requête").to_owned() });
     }
     if binary {
         let dir=output_dir.ok_or("Dossier de sortie indisponible")?;
@@ -35,7 +41,7 @@ async fn send(connection: &Connection, method: reqwest::Method, path: &str, body
         std::fs::write(&path,data).map_err(|_|"Écriture du résultat impossible")?;
         Ok(json!({"path":path}))
     }
-    else { serde_json::from_slice(&data).map_err(|_|"RÃƒÂ©ponse du PC invalide".into()) }
+    else { serde_json::from_slice(&data).map_err(|_|"Réponse du PC invalide".into()) }
 }
 
 #[tauri::command]
@@ -45,13 +51,13 @@ async fn connect(state:tauri::State<'_,Remote>,code:String,endpoint:Option<Strin
     let connection=Connection {client:pairing.client()?,pairing};
     let mut health=send(&connection,reqwest::Method::GET,"/v1/health",None,false,None).await?;
     health["endpoint"]=json!(connection.pairing.endpoint);
-    *state.0.lock().map_err(|_|"Ãƒâ€°tat indisponible")?=Some(connection);
+    *state.0.lock().map_err(|_|"État indisponible")?=Some(connection);
     Ok(health)
 }
 
 #[tauri::command]
 async fn remote(app:tauri::AppHandle,state:tauri::State<'_,Remote>,op:String,id:Option<String>,mut body:Option<Value>) -> Result<Value,String> {
-    let connection=state.0.lock().map_err(|_|"Ãƒâ€°tat indisponible")?.clone().ok_or("Connectez dÃ¢â‚¬â„¢abord le PC")?;
+    let connection=state.0.lock().map_err(|_|"État indisponible")?.clone().ok_or("Connectez d’abord le PC")?;
     let job_id=if let Some(id)=id { Some(uuid::Uuid::parse_str(&id).map_err(|_|"Identifiant invalide")?.to_string()) }else{None};
     let (method,path,binary)=match op.as_str() {
         "health" => (reqwest::Method::GET,"/v1/health".into(),false),
@@ -64,7 +70,7 @@ async fn remote(app:tauri::AppHandle,state:tauri::State<'_,Remote>,op:String,id:
             let method=if op=="cancel"||op=="retry"{reqwest::Method::POST}else{reqwest::Method::GET};
             (method,path,op=="result"||op=="report")
         },
-        _=>return Err("OpÃƒÂ©ration inconnue".into()),
+        _=>return Err("Opération inconnue".into()),
     };
     if matches!(op.as_str(),"preview"|"submit") {
         if let Some(value)=body.as_mut() {

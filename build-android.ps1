@@ -27,7 +27,8 @@ try{
     $apkFlavor=$flavor.ToLowerInvariant()
     $inputApk=Join-Path $root "mobile\src-tauri\gen\android\app\build\outputs\apk\$apkFlavor\$profile\app-$apkFlavor-$profile$(if(-not $Debug){'-unsigned'}).apk"
     if(-not(Test-Path -LiteralPath $inputApk)){throw "APK introuvable: $inputApk"}
-    $output=Join-Path $releases "Kotoba-0.1.0-android-$Target$(if($Debug){'-debug'}).apk"
+    $version=(Get-Content (Join-Path $root "mobile/src-tauri/tauri.conf.json") -Raw | ConvertFrom-Json).version
+    $output=Join-Path $releases "Kotoba-$version-android-$Target$(if($Debug){'-debug'}).apk"
     if($Debug){Copy-Item -LiteralPath $inputApk -Destination $output -Force}
     else{
         $signing=Join-Path $root '.android-signing';$null=New-Item -ItemType Directory -Path $signing -Force

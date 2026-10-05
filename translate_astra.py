@@ -13,7 +13,7 @@ MARKER = re.compile(r"⟦ASTRA_[A-Za-z0-9_]+⟧")
 def run_astra(args, document):
     target = 'fr' if args.target.startswith('French') else 'en' if args.target.startswith('English') else None
     if document.get('targetLanguage') != target:
-        raise t.TranslationError('Astra targetLanguage differs from the selected language. Select the export language before translating.')
+        raise t.TranslationError('La langue choisie ne correspond pas à cet export Astra. Sélectionnez la langue indiquée par targetLanguage dans le fichier.')
     if document.get('version') != 1 or not isinstance(document.get('entries'), list):
         raise t.TranslationError('Unsupported Astra export version or entries')
     source = args.input.resolve()
