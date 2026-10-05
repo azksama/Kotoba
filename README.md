@@ -156,3 +156,11 @@ Sources : [TranslateGemma Google](https://huggingface.co/google/translategemma-1
 ## Application Android et accès distant
 
 Consulte [le guide Android et Freebox](ANDROID.md). APK signé dans `releases/`, compagnon Windows démarré par `Demarrer-Kotoba-PC.cmd`. Limite mobile : 50 Mo par fichier.
+
+## Exports Astra RPG Maker
+
+Le format `astra-rpgm-translation` version 1 est reconnu automatiquement. Seuls les champs `entries[*].translation` sont remplis ; sources, identifiants, codes et métadonnées sont conservés. Choisis la langue `targetLanguage` de l’export dans l’application. Un export français ne peut pas être traité en mode anglais : réexporte-le avec la langue voulue.
+
+Les marqueurs Astra sont conservés hors du modèle ; la traduction des fragments est signalée pour relecture. Une sortie qui invente des codes reste vide et figure dans le rapport « À relire », au lieu de bloquer tout l’export. Le mode strict continue de refuser ces erreurs. Les erreurs de connexion ou de génération interrompent toujours le travail. Le cache est conservé par langue ; les traductions anglaises ne remplacent pas des traductions françaises.
+
+Les gros fichiers restent longs avec le modèle 12B : 50 Mo est une limite de taille, pas une promesse de durée. Les répétitions sont réutilisées. L’application affiche au maximum 100 alertes ; le rapport téléchargé les contient toutes.

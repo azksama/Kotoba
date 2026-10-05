@@ -23,3 +23,5 @@ mobile/src-tauri/gen/android/app/tauri.properties
 .impeccable/review/
 .impeccable/mocks/
 mobile/src-tauri/gen/android/tauri.settings.gradle
+
+.codex-remote-attachments/

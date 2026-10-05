@@ -231,6 +231,10 @@ class Ollama:
         if not result.get("done") or result.get("done_reason") != "stop":
             raise TranslationError("Incomplete/truncated model output")
         translated = result.get("response", "").strip()
+        # Models may wrap a single dialogue in several lines. Line breaks are
+        # engine commands: flatten generated layout when none was requested.
+        if not any(c in text for c in "\r\n\t"):
+            translated = re.sub(r"[\r\n\t]+", " ", translated)
         if not translated or "```" in translated:
             raise TranslationError("Empty output or unexpected Markdown block")
         return translated
@@ -262,6 +266,11 @@ class Translator:
         masked, saved, marker_pattern = mask(body, self.pattern)
         if not masked:
             return text
+        # Astra markers are opaque identifiers (often line/engine boundaries).
+        # Translate the adjacent prose directly instead of spending three model
+        # calls attempting to reproduce identifiers before the same fallback.
+        if saved and any(token.startswith("⟦ASTRA_") for _, token in saved) and not self.strict_tokens:
+            return self.segmented(text, body, leading, trailing)
         for attempt in range(self.retries + 1):
             try:
                 translated = self.client.translate(masked, self.source, self.target, attempt)
@@ -276,19 +285,22 @@ class Translator:
                     if isinstance(exc, ProtectedTokenError) and saved and not self.strict_tokens:
                         # Last resort: the model never sees the original game codes.
                         # Keep all tokens at their exact boundaries, and flag for review.
-                        self.last_segmented = True
-                        output, cursor = [], 0
-                        for match in self.pattern.finditer(body):
-                            output.append(self.piece(body[cursor:match.start()]))
-                            output.append(match.group(0))
-                            cursor = match.end()
-                        output.append(self.piece(body[cursor:]))
-                        result = leading + "".join(output) + trailing
-                        if self.pattern.findall(result) != self.pattern.findall(text):
-                            raise ProtectedTokenError("Segmented control-code validation failed")
-                        return result
+                        return self.segmented(text, body, leading, trailing)
                     raise
                 time.sleep(min(attempt + 1, 3))
+
+    def segmented(self, text, body, leading, trailing):
+        self.last_segmented = True
+        output, cursor = [], 0
+        for match in self.pattern.finditer(body):
+            output.append(self.piece(body[cursor:match.start()]))
+            output.append(match.group(0))
+            cursor = match.end()
+        output.append(self.piece(body[cursor:]))
+        result = leading + "".join(output) + trailing
+        if self.pattern.findall(result) != self.pattern.findall(text):
+            raise ProtectedTokenError("Segmented control-code validation failed")
+        return result
 
     def translate(self, text):
         self.last_segmented = False
@@ -335,11 +347,15 @@ def selected(item, args, pattern):
 
 
 def render(text, replacements):
-    for item, value in sorted(replacements, key=lambda pair: pair[0].start, reverse=True):
+    pieces, cursor = [], 0
+    for item, value in sorted(replacements, key=lambda pair: pair[0].start):
         # ensure_ascii also safely represents lone surrogate escapes in existing JSON.
         ensure_ascii = "\\u" in text[item.start:item.end]
         encoded = json.dumps(value, ensure_ascii=ensure_ascii)
-        text = text[:item.start] + encoded + text[item.end:]
+        pieces.extend((text[cursor:item.start], encoded))
+        cursor = item.end
+    pieces.append(text[cursor:])
+    text = "".join(pieces)
     strict_loads(text)
     return text
 
@@ -399,6 +415,12 @@ def arguments(argv=None):
 
 def run(argv=None):
     args = arguments(argv)
+    if args.input.is_file():
+        document = strict_loads(decode_file(args.input)[0])
+        if isinstance(document, dict) and document.get("format") == "astra-rpgm-translation":
+            sys.modules.setdefault("translate_json", sys.modules[__name__])
+            from translate_astra import run_astra
+            return run_astra(args, document)
     source = args.input.resolve()
     if not source.exists():
         raise TranslationError(f"Input missing: {source}")

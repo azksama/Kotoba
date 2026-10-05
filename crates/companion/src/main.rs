@@ -188,6 +188,7 @@ async fn run_job(app: &App, id: &str) -> Result<(), String> {
     let stderr = std::fs::File::create(dir.join("worker.log")).map_err(|e|e.to_string())?;
     let mut child = command(app, &dir, &job.options, false).stdout(std::process::Stdio::piped()).stderr(stderr).spawn().map_err(|e|e.to_string())?;
     let mut lines = BufReader::new(child.stdout.take().unwrap()).lines();
+    let mut last_progress = std::time::Instant::now() - Duration::from_secs(1);
     loop {
         tokio::select! {
             line = lines.next_line() => {
@@ -195,11 +196,15 @@ async fn run_job(app: &App, id: &str) -> Result<(), String> {
                 if let Some(progress) = line.strip_prefix('[').and_then(|s| s.split(']').next()) {
                     if let Some((done, total)) = progress.split_once('/') {
                         if let (Ok(done), Ok(total)) = (done.parse::<u64>(), total.parse::<u64>()) {
-                            mutate(app,id,|j| { j.done=done; j.total=total; j.message=format!("{done} / {total} textes traduits"); }).await;
+                            if done == total || last_progress.elapsed() >= Duration::from_millis(500) {
+                                mutate(app,id,|j| { j.done=done; j.total=total; j.message=format!("{done} / {total} textes traduits"); }).await;
+                                last_progress = std::time::Instant::now();
+                            }
                         }
                     }
                 }
-                if line.starts_with("REVIEW ") { mutate(app,id,|j| j.reviews.push(line.chars().take(500).collect())).await; }
+                // Keep mobile polling small; the downloadable report retains all reviews.
+                if line.starts_with("REVIEW ") { mutate(app,id,|j| if j.reviews.len() < 100 { j.reviews.push(line.chars().take(500).collect()); }).await; }
             }
             _ = tokio::time::sleep(Duration::from_millis(400)) => {
                 let cancelled = app.jobs.lock().await.get(id).is_some_and(|j| j.status=="cancelled");
