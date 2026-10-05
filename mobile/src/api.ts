@@ -1,0 +1,13 @@
+import { invoke } from '@tauri-apps/api/core';
+export type LocalFile = {filename:string;data:string;file_id?:string;size:number;cancelled?:boolean};
+export type Options = {target:string; include:string[]; exclude:string[]; strict_tokens:boolean; glossary:Record<string,string>|null};
+export type Job = {id:string;filename:string;status:string;created_at:number;done:number;total:number;message:string;reviews:string[];options:Options};
+export type Health = {endpoint?:string;name:string;ollama:boolean;model_ready:boolean;model:string;max_file_bytes:number};
+export type Preview = {total:number;preview:string[]};
+export const remote = <T,>(op:string,id?:string,body?:unknown)=>invoke<T>('remote',{op,id:id??null,body:body??null});
+export const native = <T,>(op:string,body?:unknown)=>invoke<T>('native_action',{op,body:body??null});
+export const connect = (code:string,endpoint:string)=>invoke<Health>('connect',{code,endpoint:endpoint||null});
+export const disconnect = ()=>invoke('disconnect');
+export const decode = (data:string)=>new TextDecoder().decode(Uint8Array.from(atob(data),c=>c.charCodeAt(0)));
+export const active = (job:Job)=>job.status==='running'||job.status==='queued';
+export const statusLabel = (status:string)=>({queued:'En attente',running:'En cours',completed:'Terminée',failed:'Échec',cancelled:'Annulée',interrupted:'Interrompue'}[status]??status);

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Kotoba",
+  "version": "0.1.0",
+  "identifier": "fr.azk.kotoba",
+  "build": { "beforeBuildCommand": "npm run build", "beforeDevCommand": "npm run dev", "devUrl": "http://localhost:1420", "frontendDist": "../dist" },
+  "app": {
+    "windows": [{ "title": "Kotoba", "width": 420, "height": 860, "minWidth": 320 }],
+    "security": { "csp": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost; script-src 'self'; object-src 'none'; base-uri 'self'; frame-src 'none'" }
+  },
+  "bundle": { "active": true, "targets": "all", "android": { "minSdkVersion": 26 }, "icon": ["icons/32x32.png", "icons/128x128.png", "icons/icon.ico"] }
+}

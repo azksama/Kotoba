@@ -1,0 +1,35 @@
+{
+  "date": "2026-10-05",
+  "translator_unit_tests": 23,
+  "rust_unit_tests": 5,
+  "https_smoke_checks": 10,
+  "android_emulator": {
+    "avd": "small_phone",
+    "abi": "x86_64",
+    "sdk_tools_only": true,
+    "real_gpu_translation": true,
+    "background_resume": true,
+    "native_export_json": true,
+    "pairing_restored_after_restart": true,
+    "light_dark_large_text": true,
+    "input_50_mib_import_and_preview": true,
+    "native_export_50_mib_byte_identical": true
+  },
+  "size_boundary": {
+    "accepted_bytes": 52428800,
+    "rejected_bytes": 52428801
+  },
+  "release": {
+    "arm64_apk_signature_v2_v3": true,
+    "zip_alignment_16k": true,
+    "windows_companion_running": true,
+    "windows_firewall_scoped_rule": true
+  },
+  "visual_review": "SHIP limited to three requested fixes, all resolved",
+  "not_verified": [
+    "physical Android phone",
+    "Freebox VPN setup",
+    "4G/5G connectivity",
+    "large real-game corpus translation quality"
+  ]
+}

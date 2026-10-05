@@ -1,0 +1,15 @@
+{
+  "id": 9007199254740993,
+  "path": "画像/勇者.png",
+  "enabled": true,
+  "ratio": 1.2300,
+  "dialogues": [
+    {"speaker": "兵士", "text": "この先は危険だ。気をつけろ！"},
+    {"speaker": "村人", "text": "お帰りなさい、{player}！"},
+    {"speaker": "店主", "text": "ポーションを%d個手に入れた。"},
+    {"speaker": "魔法使い", "text": "\\C[2]魔法の扉\\C[0]を開けよう。"},
+    {"speaker": "案内人", "text": "準備はいい？\nさあ、出発しよう！"}
+  ],
+  "menu": {"new_game": "はじめから", "continue": "つづきから", "quit": "終了"},
+  "unchanged": [null, false, "Already English", "", 1e+03]
+}

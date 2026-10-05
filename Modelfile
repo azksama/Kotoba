@@ -1,0 +1,4 @@
+FROM translategemma:12b
+PARAMETER temperature 0
+PARAMETER num_ctx 2048
+PARAMETER num_predict 768
